@@ -1,0 +1,14 @@
+{
+  "plugins": {
+    "marketplaces": [
+      "freshtechbro/claudedesignskills",
+      "jeffallan/claude-skills"
+    ],
+    "installed": [
+      "aframe-webxr",
+      "core-3d-animation",
+      "react-three-fiber",
+      "fullstack-dev-skills@jeffallan"
+    ]
+  }
+}
