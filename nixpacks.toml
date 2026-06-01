@@ -1,0 +1,14 @@
+# Nixpacks configuration for Railway
+# Single service: builds the immersive web app + NestJS API, then serves both.
+
+[phases.setup]
+nixPkgs = ["nodejs_22", "pnpm"]
+
+[phases.install]
+cmds = ["pnpm install --frozen-lockfile"]
+
+[phases.build]
+cmds = ["pnpm run build"]
+
+[start]
+cmd = "node apps/api/dist/main.js"
