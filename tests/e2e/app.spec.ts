@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 test("immersive demo loads the 3D canvas and Meet panel", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator("canvas")).toBeVisible();
-  await expect(page.getByRole("heading", { name: /Keynote Hall/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /EMAAR/i })).toBeVisible();
   await expect(page.getByRole("button", { name: /Schedule Meet/i })).toBeVisible();
 });
 

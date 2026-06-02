@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Meeting } from "@immersive/shared";
 import { listMeetings, createMeeting, deleteMeeting } from "../api";
-import { BOOTHS } from "../scene/Scene";
+import { getDeveloper } from "../scene/developers";
 
 function defaultStart(): string {
   const d = new Date(Date.now() + 60 * 60 * 1000);
@@ -11,8 +11,8 @@ function defaultStart(): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export function MeetPanel({ activeBooth }: { activeBooth: string }) {
-  const booth = BOOTHS.find((b) => b.id === activeBooth) ?? BOOTHS[0];
+export function MeetPanel({ activeDeveloper }: { activeDeveloper: string }) {
+  const dev = getDeveloper(activeDeveloper);
   const [title, setTitle] = useState("");
   const [startTime, setStartTime] = useState(defaultStart());
   const [attendees, setAttendees] = useState("");
@@ -20,9 +20,11 @@ export function MeetPanel({ activeBooth }: { activeBooth: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Re-seed the form whenever a different developer's room is selected.
   useEffect(() => {
-    setTitle(`${booth.label} Session`);
-  }, [booth.label]);
+    setTitle(`${dev.name} — Investor Meeting`);
+    setAttendees(dev.contact);
+  }, [dev.id, dev.name, dev.contact]);
 
   const refresh = () => {
     listMeetings()
@@ -65,11 +67,11 @@ export function MeetPanel({ activeBooth }: { activeBooth: string }) {
 
   return (
     <div className="panel">
-      <div className="panel-header" style={{ borderColor: booth.color }}>
-        <span className="dot" style={{ background: booth.color }} />
-        <h2>{booth.label}</h2>
+      <div className="panel-header" style={{ borderColor: dev.color }}>
+        <span className="dot" style={{ background: dev.color }} />
+        <h2>{dev.name}</h2>
       </div>
-      <p className="hint">Schedule a Google Meet for this exhibit space.</p>
+      <p className="hint">{dev.tagline} · schedule a Google Meet with this developer.</p>
 
       <form onSubmit={onSubmit}>
         <label>
@@ -93,7 +95,7 @@ export function MeetPanel({ activeBooth }: { activeBooth: string }) {
             placeholder="alice@example.com, bob@example.com"
           />
         </label>
-        <button type="submit" disabled={busy} style={{ background: booth.color }}>
+        <button type="submit" disabled={busy} style={{ background: dev.color }}>
           {busy ? "Scheduling…" : "Schedule Meet"}
         </button>
       </form>
