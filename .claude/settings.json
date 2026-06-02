@@ -1,0 +1,29 @@
+{
+  "skills": {
+    "source": ".claude/skills",
+    "installed": [
+      "aframe-webxr",
+      "react-three-fiber",
+      "threejs-webgl",
+      "web3d-integration-patterns",
+      "modern-web-design",
+      "gsap-scrolltrigger",
+      "motion-framer",
+      "react-expert",
+      "nestjs-expert",
+      "feature-forge",
+      "architecture-designer",
+      "fullstack-guardian",
+      "test-master",
+      "devops-engineer",
+      "api-designer",
+      "typescript-pro",
+      "playwright-expert",
+      "code-reviewer",
+      "frontend-design",
+      "webapp-testing",
+      "mcp-builder",
+      "claude-api"
+    ]
+  }
+}
