@@ -9,6 +9,20 @@ export default defineConfig({
       "@immersive/shared": path.resolve(__dirname, "../../packages/shared/src"),
     },
   },
+  build: {
+    // Split the heavy 3D libraries into their own long-cached vendor chunk.
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          three: ["three"],
+          r3f: ["@react-three/fiber", "@react-three/drei", "@react-three/xr"],
+        },
+      },
+    },
+    // The remaining large chunks are @react-three/xr's VR-emulator room
+    // environments — lazy chunks that never load at runtime (emulate: false).
+    chunkSizeWarningLimit: 2500,
+  },
   server: {
     port: 5173,
     proxy: {
