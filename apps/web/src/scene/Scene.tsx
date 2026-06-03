@@ -1,6 +1,10 @@
+import { useEffect } from "react";
+import { useThree } from "@react-three/fiber";
 import { OrbitControls, ContactShadows, useTexture, Text } from "@react-three/drei";
-import { DEVELOPERS } from "./developers";
+import { Physics } from "@react-three/rapier";
 import { CurvedBooth } from "./CurvedBooth";
+import { ExhibitionColliders } from "../physics/Colliders";
+import { PlayerController } from "../physics/PlayerController";
 import {
   EntrancePortal,
   FeaturePlaza,
@@ -10,43 +14,8 @@ import {
   CoffeeCorner,
 } from "./Amenities";
 import { Plant, Crowd } from "./props";
+import { BOOTHS, FLOOR_W, FLOOR_D, WALL_H, BACK_WALL_H } from "./layout";
 import logoUrl from "../assets/images/TDE_header.png";
-
-// ----- Organic layout: 30 equal booths grouped into scattered curved islands -----
-// Each island is a small ring of booths opening OUTWARD, so visitors circulate
-// around it. Islands sit at varied distances/angles around a central hero feature,
-// leaving generous, irregular networking voids between clusters (no grid).
-type Island = { c: [number, number]; n: number; r: number; a0: number };
-const ISLANDS: Island[] = [
-  { c: [-4.5, 12], n: 7, r: 4.6, a0: 0.3 }, // front-left, large
-  { c: [10.7, 9], n: 6, r: 4.0, a0: 0.9 }, // front-right
-  { c: [14.1, -5], n: 6, r: 4.0, a0: 1.7 }, // right
-  { c: [-13.2, -5], n: 6, r: 4.0, a0: 2.4 }, // left
-  { c: [0, -13], n: 5, r: 3.7, a0: 0.0 }, // back-centre
-];
-
-const BOOTHS = (() => {
-  const out: { dev: (typeof DEVELOPERS)[number]; position: [number, number, number]; rotationY: number }[] = [];
-  let i = 0;
-  for (const isl of ISLANDS) {
-    for (let k = 0; k < isl.n; k++) {
-      const a = isl.a0 + (k / isl.n) * Math.PI * 2;
-      const x = isl.c[0] + Math.cos(a) * isl.r;
-      const z = isl.c[1] + Math.sin(a) * isl.r;
-      out.push({
-        dev: DEVELOPERS[i++],
-        position: [x, 0, z],
-        rotationY: Math.atan2(Math.cos(a), Math.sin(a)), // opening faces away from island centre
-      });
-    }
-  }
-  return out;
-})();
-
-const FLOOR_W = 50;
-const FLOOR_D = 54;
-const WALL_H = 6;
-const BACK_WALL_H = 10; // taller backdrop to carry the logo + tagline
 
 // Curved gold pathway inlays on the marble (suggest circulation routes).
 const PATHS: { r: number; a0: number; len: number }[] = [
@@ -119,13 +88,30 @@ function Hall() {
   );
 }
 
+export type ViewMode = "orbit" | "walk";
+
 export function Scene({
   activeDeveloper,
   onSelectDeveloper,
+  mode = "orbit",
 }: {
-  activeDeveloper: string;
+  activeDeveloper: string | null;
   onSelectDeveloper: (id: string) => void;
+  /** "orbit" = overview camera; "walk" = first-person physics walkthrough. */
+  mode?: ViewMode;
 }) {
+  const walking = mode === "walk";
+  const { camera } = useThree();
+
+  // Restore the cinematic overview pose whenever we leave walk mode (the
+  // PlayerController owns the camera while walking).
+  useEffect(() => {
+    if (!walking) {
+      camera.position.set(0, 21, 26);
+      camera.lookAt(0, 1, 0);
+    }
+  }, [walking, camera]);
+
   return (
     <>
       <color attach="background" args={["#171209"]} />
@@ -139,6 +125,13 @@ export function Scene({
       <pointLight position={[0, 8, 12]} intensity={30} color="#ffe7c2" distance={48} decay={2} />
 
       <Hall />
+
+      {/* Physics world: static colliders mirror the visuals; the player is the
+          only dynamic actor. Stepping is paused in overview mode to save CPU. */}
+      <Physics paused={!walking} gravity={[0, -9.81, 0]} timeStep="vary">
+        <ExhibitionColliders />
+        <PlayerController enabled={walking} />
+      </Physics>
 
       {/* 30 developer booths, scattered in curved islands */}
       {BOOTHS.map(({ dev, position, rotationY }) => (
@@ -182,16 +175,20 @@ export function Scene({
 
       <ContactShadows position={[0, 0.02, 1]} opacity={0.4} scale={56} blur={2.6} far={10} resolution={1024} />
 
-      <OrbitControls
-        makeDefault
-        enableDamping
-        dampingFactor={0.06}
-        target={[0, 1, 0]}
-        minPolarAngle={Math.PI / 9}
-        maxPolarAngle={Math.PI / 2.15}
-        minDistance={16}
-        maxDistance={66}
-      />
+      {/* Overview camera — disabled while walking so it doesn't fight the
+          first-person PointerLock camera. */}
+      {!walking && (
+        <OrbitControls
+          makeDefault
+          enableDamping
+          dampingFactor={0.06}
+          target={[0, 1, 0]}
+          minPolarAngle={Math.PI / 9}
+          maxPolarAngle={Math.PI / 2.15}
+          minDistance={16}
+          maxDistance={66}
+        />
+      )}
     </>
   );
 }

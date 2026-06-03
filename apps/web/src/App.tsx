@@ -2,18 +2,8 @@ import { Suspense, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { XR, createXRStore } from "@react-three/xr";
 import { Scene } from "./scene/Scene";
-import { MeetPanel } from "./ui/MeetPanel";
-import { FIRST_DEVELOPER } from "./scene/developers";
-import tdeHeaderLogo from "./assets/images/TDE_header.png";
-
-const KEY_ITEMS = [
-  "30 Developer Booths",
-  "Curved Contemporary Design",
-  "Networking & Lounge Areas",
-  "Information Desk",
-  "VIP Lounge",
-  "Main Walkways",
-];
+import type { ViewMode } from "./scene/Scene";
+import { BoothPanel } from "./ui/BoothPanel";
 
 // emulate: false → don't inject the dev XR button or pull the emulator bundle.
 // On an XR-capable device/browser (Railway is HTTPS) the "Enter VR" button
@@ -21,26 +11,16 @@ const KEY_ITEMS = [
 const xrStore = createXRStore({ emulate: false });
 
 export function App() {
-  const [activeDeveloper, setActiveDeveloper] = useState(FIRST_DEVELOPER.id);
+  // null = no panel open. Clicking a booth toggles it; clicking another swaps.
+  const [openDeveloper, setOpenDeveloper] = useState<string | null>(null);
+  const [mode, setMode] = useState<ViewMode>("orbit");
+
+  const handleSelectDeveloper = (id: string) =>
+    setOpenDeveloper((current) => (current === id ? null : id));
 
   return (
     <div className="app">
       <div className="canvas-wrap">
-        {/* <header className="expo-header">
-          <img src={tdeHeaderLogo} alt="The Direct Expo" className="expo-logo" />
-          <div className="expo-tagline">CONNECT&nbsp;&nbsp;•&nbsp;&nbsp;EXPLORE&nbsp;&nbsp;•&nbsp;&nbsp;INVEST</div>
-        </header> */}
-
-        {/* <div className="floor-key">
-          <h2>KEY</h2>
-          <ul>
-            {KEY_ITEMS.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-          <p className="key-hint">Click any booth to schedule a Google Meet · drag to look around</p>
-        </div> */}
-
         <Canvas
           shadows
           camera={{ position: [0, 21, 26], fov: 44 }}
@@ -49,19 +29,44 @@ export function App() {
           <XR store={xrStore}>
             <Suspense fallback={null}>
               <Scene
-                activeDeveloper={activeDeveloper}
-                onSelectDeveloper={setActiveDeveloper}
+                activeDeveloper={openDeveloper}
+                onSelectDeveloper={handleSelectDeveloper}
+                mode={mode}
               />
             </Suspense>
           </XR>
         </Canvas>
+
+        <div className="view-controls">
+          <button
+            className={`mode-btn ${mode === "orbit" ? "is-active" : ""}`}
+            onClick={() => setMode("orbit")}
+          >
+            Overview
+          </button>
+          <button
+            className={`mode-btn ${mode === "walk" ? "is-active" : ""}`}
+            onClick={() => setMode("walk")}
+          >
+            Walk the floor
+          </button>
+        </div>
+
+        {mode === "walk" && (
+          <div className="walk-hint">
+            Click to look around · <strong>WASD</strong> to move · <strong>Shift</strong> to run ·
+            <strong> Esc</strong> to release the cursor
+          </div>
+        )}
+
         <button className="xr-btn" onClick={() => xrStore.enterVR()}>
           Enter VR
         </button>
+
+        {/* Floating, non-blocking developer details — slides over the scene
+            on the right without dimming or covering it. */}
+        <BoothPanel developerId={openDeveloper} onClose={() => setOpenDeveloper(null)} />
       </div>
-      <aside className="sidebar">
-        <MeetPanel activeDeveloper={activeDeveloper} />
-      </aside>
     </div>
   );
 }

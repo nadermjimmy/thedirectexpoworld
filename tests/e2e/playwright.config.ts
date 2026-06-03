@@ -8,6 +8,11 @@ export default defineConfig({
   use: {
     baseURL: `http://localhost:${PORT}`,
     headless: true,
+    // Force software WebGL so the 3D scene renders in headless CI — booth
+    // picking in the specs relies on real rendered geometry.
+    launchOptions: {
+      args: ["--use-gl=angle", "--use-angle=swiftshader", "--ignore-gpu-blocklist"],
+    },
   },
   webServer: {
     // Build and run the real deployable artifact: NestJS serving the
