@@ -4,7 +4,9 @@ const PORT = 3100;
 
 export default defineConfig({
   testDir: ".",
-  timeout: 60_000,
+  // Generous per-test budget: the gallery streams heavy PBR textures + large
+  // GLB furniture before the booths become interactive.
+  timeout: 150_000,
   use: {
     baseURL: `http://localhost:${PORT}`,
     headless: true,

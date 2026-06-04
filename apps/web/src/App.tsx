@@ -23,8 +23,12 @@ export function App() {
       <div className="canvas-wrap">
         <Canvas
           shadows
+          // Cap the pixel ratio: retina screens otherwise render at 2–3× the
+          // pixels (quadratic fill-rate cost) for little visible gain at this
+          // scene scale. 1.5 keeps edges crisp while roughly halving GPU load.
+          dpr={[1, 1.5]}
           camera={{ position: [0, 21, 26], fov: 44 }}
-          gl={{ preserveDrawingBuffer: true }}
+          gl={{ preserveDrawingBuffer: true, powerPreference: "high-performance" }}
         >
           <XR store={xrStore}>
             <Suspense fallback={null}>

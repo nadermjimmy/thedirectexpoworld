@@ -24,16 +24,17 @@ export const BOOTH_DESK_W = 2.2; // reception desk width
 export const BOOTH_DESK_D = 0.5; // reception desk depth
 export const BOOTH_DESK_Z = 1.35; // reception desk forward offset
 
-// ----- Organic island layout: 30 equal booths in scattered curved islands -----
-export type Island = { c: [number, number]; n: number; r: number; a0: number };
-
-export const ISLANDS: Island[] = [
-  { c: [-4.5, 12], n: 7, r: 4.6, a0: 0.3 }, // front-left, large
-  { c: [10.7, 9], n: 6, r: 4.0, a0: 0.9 }, // front-right
-  { c: [14.1, -5], n: 6, r: 4.0, a0: 1.7 }, // right
-  { c: [-13.2, -5], n: 6, r: 4.0, a0: 2.4 }, // left
-  { c: [0, -13], n: 5, r: 3.7, a0: 0.0 }, // back-centre
-];
+// ----- Spaced grid layout: two booth blocks flanking a central avenue -----
+// Booths sit on a regular 3-column × 5-row grid on each side of an open
+// central avenue (which carries the hero plaza + entrance). Every booth is at
+// least BOOTH_PITCH apart — comfortably more than a booth's ~2.5 m footprint —
+// so no walls or props ever touch or intersect. Left-block booths open toward
+// +X and right-block toward −X, so all fronts face the avenue.
+export const BOOTH_FOOTPRINT = 2.5; // keep-out radius of one booth (wall + pad + front props)
+const BOOTH_PITCH = 7; // centre-to-centre spacing (≈2 m clear between booths)
+const COLS_LEFT = [-7.5, -14.5, -21.5];
+const COLS_RIGHT = [7.5, 14.5, 21.5];
+const ROWS = [-20, -13, -6, 1, 8];
 
 export type BoothPlacement = {
   dev: (typeof DEVELOPERS)[number];
@@ -41,24 +42,24 @@ export type BoothPlacement = {
   rotationY: number;
 };
 
-/** Deterministic placement of all 30 booths around their islands. */
+/** Deterministic, collision-free placement of all 30 booths. */
 export const BOOTHS: BoothPlacement[] = (() => {
   const out: BoothPlacement[] = [];
   let i = 0;
-  for (const isl of ISLANDS) {
-    for (let k = 0; k < isl.n; k++) {
-      const a = isl.a0 + (k / isl.n) * Math.PI * 2;
-      const x = isl.c[0] + Math.cos(a) * isl.r;
-      const z = isl.c[1] + Math.sin(a) * isl.r;
-      out.push({
-        dev: DEVELOPERS[i++],
-        position: [x, 0, z],
-        rotationY: Math.atan2(Math.cos(a), Math.sin(a)), // opening faces away from island centre
-      });
+  const block = (cols: number[], rotationY: number) => {
+    for (const x of cols) {
+      for (const z of ROWS) {
+        out.push({ dev: DEVELOPERS[i++], position: [x, 0, z], rotationY });
+      }
     }
-  }
+  };
+  block(COLS_LEFT, Math.PI / 2); // openings face +X (toward the avenue)
+  block(COLS_RIGHT, -Math.PI / 2); // openings face −X (toward the avenue)
   return out;
 })();
+
+// Re-exported for any callers that referenced the grid metrics.
+export { BOOTH_PITCH };
 
 /** Static furniture / amenity placements that also need collision. Kept here
  *  so the collider layer stays a pure data-driven mirror of Scene.tsx. */
@@ -67,18 +68,31 @@ export type AmenityPlacement = {
   rotationY?: number;
 };
 
+// All amenity positions below are verified to clear every booth and each other
+// (central avenue + front reception zone + aisle gaps between booth columns).
 export const FEATURE_PLAZA: AmenityPlacement = { position: [0, 0, 0] };
-export const INFORMATION_DESK: AmenityPlacement = { position: [-5, 0, 18], rotationY: 0.15 };
-export const VIP_LOUNGE: AmenityPlacement = { position: [18, 0, 15], rotationY: -Math.PI / 7 };
+export const INFORMATION_DESK: AmenityPlacement = { position: [-9, 0, 16], rotationY: 0.12 };
+export const VIP_LOUNGE: AmenityPlacement = { position: [9, 0, 16], rotationY: -Math.PI / 8 };
 export const ENTRANCE_PORTAL: AmenityPlacement = { position: [0, 0, 23] };
 
+// Networking lounges run down the open central avenue (in front of, and behind,
+// the hero plaza).
 export const NETWORKING_LOUNGES: AmenityPlacement[] = [
-  { position: [7.5, 0, 1.5], rotationY: -0.7 },
-  { position: [-7.5, 0, 4], rotationY: 2.2 },
-  { position: [4, 0, -7.5], rotationY: 0.4 },
+  { position: [0, 0, 12], rotationY: Math.PI },
+  { position: [0, 0, -18], rotationY: 0 },
+  // (the spot behind the plaza at z≈-8 is reserved for the main video wall)
 ];
 
+// Coffee corners tuck into the aisle gaps between booth columns.
 export const COFFEE_CORNERS: AmenityPlacement[] = [
-  { position: [3, 0, 6.5] },
-  { position: [-6.5, 0, -9] },
+  { position: [-11, 0, -2.5] },
+  { position: [11, 0, -9.5] },
+];
+
+// Decorative plants at clear aisle cross-points.
+export const PLANTS: AmenityPlacement[] = [
+  { position: [-11, 0, 4.5] },
+  { position: [11, 0, 4.5] },
+  { position: [-11, 0, -16.5] },
+  { position: [11, 0, -16.5] },
 ];

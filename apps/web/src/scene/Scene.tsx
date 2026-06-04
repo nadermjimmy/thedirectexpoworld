@@ -8,54 +8,60 @@ import { PlayerController } from "../physics/PlayerController";
 import {
   EntrancePortal,
   FeaturePlaza,
-  InformationDesk,
   VipLounge,
   NetworkingLounge,
   CoffeeCorner,
 } from "./Amenities";
+import { ReceptionArea, LoungeGroup, GalleryPlants, MainScreen } from "./Furniture";
 import { Plant, Crowd } from "./props";
-import { BOOTHS, FLOOR_W, FLOOR_D, WALL_H, BACK_WALL_H } from "./layout";
+import {
+  BOOTHS,
+  FLOOR_W,
+  FLOOR_D,
+  WALL_H,
+  BACK_WALL_H,
+  FEATURE_PLAZA,
+  ENTRANCE_PORTAL,
+  VIP_LOUNGE,
+  NETWORKING_LOUNGES,
+  COFFEE_CORNERS,
+  PLANTS,
+} from "./layout";
+import { PbrProvider, usePbrMaterial } from "../materials/pbr";
+import { SceneEnvironment } from "../materials/SceneEnvironment";
 import logoUrl from "../assets/images/TDE_header.png";
-
-// Curved gold pathway inlays on the marble (suggest circulation routes).
-const PATHS: { r: number; a0: number; len: number }[] = [
-  { r: 7.5, a0: 0.2, len: Math.PI * 1.5 },
-  { r: 12, a0: 1.6, len: Math.PI * 1.1 },
-  { r: 17.5, a0: 3.2, len: Math.PI * 1.3 },
-  { r: 9.5, a0: 4.2, len: Math.PI * 0.8 },
-];
 
 function Hall() {
   const logo = useTexture(logoUrl);
+  // Marble for the main floor; wood for the architectural walls. A subtle warm
+  // tint + reduced roughness multiplier reads as polished, reflective marble.
+  const marbleFloor = usePbrMaterial("marble", {
+    repeat: [10, 11],
+    color: "#efe7d8",
+    roughness: 0.55,
+    envMapIntensity: 0.9,
+    normalScale: 0.6,
+  });
+  const sideWallWood = usePbrMaterial("wood", { repeat: [22, 3], color: "#b8966a" });
+  const backWallWood = usePbrMaterial("wood", { repeat: [18, 4], color: "#c2a074" });
+
   return (
     <group>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 1]} receiveShadow>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 1]} receiveShadow material={marbleFloor}>
         <planeGeometry args={[FLOOR_W, FLOOR_D]} />
-        <meshStandardMaterial color="#dad4c8" roughness={0.3} metalness={0.04} />
       </mesh>
 
-      {/* curved pathway inlays */}
-      {PATHS.map((p, i) => (
-        <mesh key={i} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
-          <ringGeometry args={[p.r, p.r + 0.55, 64, 1, p.a0, p.len]} />
-          <meshStandardMaterial color="#cdb887" roughness={0.5} metalness={0.2} />
-        </mesh>
-      ))}
-
-      {/* side walls */}
-      <mesh position={[-FLOOR_W / 2, WALL_H / 2, 1]} receiveShadow>
+      {/* side walls (wood) */}
+      <mesh position={[-FLOOR_W / 2, WALL_H / 2, 1]} receiveShadow castShadow material={sideWallWood}>
         <boxGeometry args={[0.5, WALL_H, FLOOR_D]} />
-        <meshStandardMaterial color="#624a31" roughness={0.75} />
       </mesh>
-      <mesh position={[FLOOR_W / 2, WALL_H / 2, 1]} receiveShadow>
+      <mesh position={[FLOOR_W / 2, WALL_H / 2, 1]} receiveShadow castShadow material={sideWallWood}>
         <boxGeometry args={[0.5, WALL_H, FLOOR_D]} />
-        <meshStandardMaterial color="#624a31" roughness={0.75} />
       </mesh>
 
-      {/* tall back wall of the hall */}
-      <mesh position={[0, BACK_WALL_H / 2, -FLOOR_D / 2 + 1.5]} receiveShadow>
+      {/* tall back wall of the hall (wood) */}
+      <mesh position={[0, BACK_WALL_H / 2, -FLOOR_D / 2 + 1.5]} receiveShadow castShadow material={backWallWood}>
         <boxGeometry args={[FLOOR_W, BACK_WALL_H, 0.5]} />
-        <meshStandardMaterial color="#6f5236" roughness={0.75} />
       </mesh>
       {/* big branded logo wall: white signage panel + logo + tagline */}
       <group position={[0, 4.0, -FLOOR_D / 2 + 1.78]}>
@@ -113,16 +119,42 @@ export function Scene({
   }, [walking, camera]);
 
   return (
-    <>
+    <PbrProvider>
       <color attach="background" args={["#171209"]} />
       <fog attach="fog" args={["#171209", 50, 90]} />
 
-      <ambientLight intensity={0.5} />
-      <hemisphereLight args={["#fff3e0", "#2a2016", 0.45]} />
-      <directionalLight position={[10, 22, 18]} intensity={1.0} />
-      <pointLight position={[-12, 8, -4]} intensity={34} color="#ffe7c2" distance={48} decay={2} />
-      <pointLight position={[12, 8, -2]} intensity={34} color="#ffe7c2" distance={48} decay={2} />
-      <pointLight position={[0, 8, 12]} intensity={30} color="#ffe7c2" distance={48} decay={2} />
+      {/* Studio HDRI → neutral ambient fill + realistic reflections. It carries
+          most of the soft ambient, so the explicit fill lights below stay low.
+          Sky stays hidden so the gallery reads as an indoor space. */}
+      <SceneEnvironment intensity={0.85} />
+
+      {/* Gentle ambient/sky fill — kept low since the HDRI provides most of it. */}
+      <ambientLight intensity={0.18} />
+      <hemisphereLight args={["#fff6ec", "#34291c", 0.28]} />
+
+      {/* Soft, near-white key light for gallery-style modelling + crisp shadows.
+          A larger map + blur radius gives soft, realistic contact shadows. */}
+      <directionalLight
+        position={[12, 24, 16]}
+        intensity={1.6}
+        color="#fff3e2"
+        castShadow
+        shadow-mapSize={[2048, 2048]}
+        shadow-bias={-0.00018}
+        shadow-normalBias={0.035}
+        shadow-radius={5}
+        shadow-camera-near={1}
+        shadow-camera-far={90}
+        shadow-camera-left={-30}
+        shadow-camera-right={30}
+        shadow-camera-top={32}
+        shadow-camera-bottom={-32}
+      />
+
+      {/* Warm gallery accent pools (track-lighting feel) — soft, not dominant. */}
+      <pointLight position={[-12, 9, -4]} intensity={22} color="#ffe3b8" distance={42} decay={2} />
+      <pointLight position={[12, 9, -2]} intensity={22} color="#ffe3b8" distance={42} decay={2} />
+      <pointLight position={[0, 9, 14]} intensity={18} color="#fff0d8" distance={42} decay={2} />
 
       <Hall />
 
@@ -133,7 +165,7 @@ export function Scene({
         <PlayerController enabled={walking} />
       </Physics>
 
-      {/* 30 developer booths, scattered in curved islands */}
+      {/* 30 developer booths on a spaced grid; two blocks face the avenue */}
       {BOOTHS.map(({ dev, position, rotationY }) => (
         <group key={dev.id} position={position} rotation={[0, rotationY, 0]}>
           <CurvedBooth
@@ -144,36 +176,41 @@ export function Scene({
         </group>
       ))}
 
-      {/* central hero attraction */}
-      <FeaturePlaza position={[0, 0, 0]} />
+      {/* central hero attraction (centre of the avenue) */}
+      <FeaturePlaza position={FEATURE_PLAZA.position} />
 
-      {/* branded entrance + circulation amenities */}
-      <EntrancePortal position={[0, 0, 23]} />
-      <InformationDesk position={[-5, 0, 18]} rotationY={0.15} />
-      <VipLounge position={[18, 0, 15]} rotationY={-Math.PI / 7} />
+      {/* branded entrance + front reception amenities */}
+      <EntrancePortal position={ENTRANCE_PORTAL.position} />
+      <VipLounge position={VIP_LOUNGE.position} rotationY={VIP_LOUNGE.rotationY} />
 
-      {/* lounges & coffee corners tucked into the gaps between clusters */}
-      <NetworkingLounge position={[7.5, 0, 1.5]} rotationY={-0.7} />
-      <NetworkingLounge position={[-7.5, 0, 4]} rotationY={2.2} />
-      <NetworkingLounge position={[4, 0, -7.5]} rotationY={0.4} />
-      <CoffeeCorner position={[3, 0, 6.5]} />
-      <CoffeeCorner position={[-6.5, 0, -9]} />
+      {/* GLB furniture: reception near the entrance, waiting lounges flanking it,
+          plants around reception + corners, and the hero video wall. */}
+      <ReceptionArea />
+      <LoungeGroup position={[-17, 0, 19]} rotationY={0} />
+      <LoungeGroup position={[17, 0, 19]} rotationY={0} />
+      <GalleryPlants />
+      <MainScreen />
 
-      {/* landscaping clusters in open space */}
-      <Plant position={[-9.5, 0, 1]} scale={1.3} />
-      <Plant position={[9.5, 0, -8]} scale={1.3} />
-      <Plant position={[-2, 0, -8.5]} scale={1.2} />
-      <Plant position={[6.5, 0, 14]} scale={1.3} />
+      {/* lounges down the central avenue + coffee corners in the aisle gaps */}
+      {NETWORKING_LOUNGES.map((l, i) => (
+        <NetworkingLounge key={`net${i}`} position={l.position} rotationY={l.rotationY} />
+      ))}
+      {COFFEE_CORNERS.map((c, i) => (
+        <CoffeeCorner key={`cof${i}`} position={c.position} />
+      ))}
 
-      {/* visitors throughout the walkways */}
-      <Crowd around={[0, 0, 6]} count={6} spread={3.5} color="#46506b" />
-      <Crowd around={[-8, 0, 8]} count={4} spread={2.6} color="#5a4636" />
-      <Crowd around={[8, 0, 3]} count={5} spread={3} color="#3f4a5e" />
-      <Crowd around={[-4, 0, -3]} count={4} spread={2.4} color="#534434" />
-      <Crowd around={[5, 0, -4]} count={4} spread={2.6} color="#46506b" />
-      <Crowd around={[0, 0, 16]} count={5} spread={3.4} color="#4a4030" />
+      {/* landscaping at clear aisle cross-points */}
+      {PLANTS.map((p, i) => (
+        <Plant key={`plant${i}`} position={p.position} scale={1.3} />
+      ))}
 
-      <ContactShadows position={[0, 0.02, 1]} opacity={0.4} scale={56} blur={2.6} far={10} resolution={1024} />
+      {/* visitors along the open avenue + front concourse (clear of booths) */}
+      <Crowd around={[0, 0, 6]} count={5} spread={2.6} color="#46506b" />
+      <Crowd around={[0, 0, -12]} count={4} spread={2.6} color="#5a4636" />
+      <Crowd around={[0, 0, 19]} count={4} spread={2.8} color="#3f4a5e" />
+      <Crowd around={[3, 0, 20]} count={3} spread={1.8} color="#534434" />
+
+      <ContactShadows position={[0, 0.02, 1]} opacity={0.4} scale={56} blur={2.6} far={10} resolution={512} />
 
       {/* Overview camera — disabled while walking so it doesn't fight the
           first-person PointerLock camera. */}
@@ -189,6 +226,6 @@ export function Scene({
           maxDistance={66}
         />
       )}
-    </>
+    </PbrProvider>
   );
 }
