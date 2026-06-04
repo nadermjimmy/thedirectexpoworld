@@ -1,5 +1,9 @@
-import { Text, useTexture } from "@react-three/drei";
+import { useMemo } from "react";
+import { Text, useTexture, ContactShadows } from "@react-three/drei";
 import { CurvedSofa, RoundTable, Armchair, Plant, Person } from "./props";
+import { ByitLogo } from "./ByitLogo";
+import { BRAND, makeText3D } from "./brand3d";
+import { usePbrMaterial } from "../materials/pbr";
 import logoUrl from "../assets/images/TDE_header.png";
 
 const CREAM = "#efe7d8";
@@ -14,19 +18,19 @@ export function EntrancePortal({
   position?: [number, number, number];
 }) {
   const logo = useTexture(logoUrl);
+  const wood = usePbrMaterial("wood", { repeat: [2, 4], color: CREAM });
+  const beamWood = usePbrMaterial("wood", { repeat: [8, 1], color: CREAM });
   return (
     <group position={position}>
-      {/* pillars */}
+      {/* pillars (wood) */}
       {[-8, 8].map((x) => (
-        <mesh key={x} position={[x, 2.6, 0]} castShadow>
+        <mesh key={x} position={[x, 2.6, 0]} castShadow material={wood}>
           <cylinderGeometry args={[0.6, 0.7, 5.2, 24]} />
-          <meshStandardMaterial color={CREAM} roughness={0.7} />
         </mesh>
       ))}
-      {/* top beam */}
-      <mesh position={[0, 5, 0]} castShadow>
+      {/* top beam (wood) */}
+      <mesh position={[0, 5, 0]} castShadow material={beamWood}>
         <boxGeometry args={[17.4, 1.3, 1.1]} />
-        <meshStandardMaterial color={CREAM} roughness={0.7} />
       </mesh>
       <mesh position={[0, 4.32, 0]}>
         <boxGeometry args={[17.4, 0.08, 1.12]} />
@@ -60,50 +64,82 @@ export function EntrancePortal({
   );
 }
 
-/** Central hero attraction: a landscaped planter with a gold totem sculpture,
- *  a curved media screen and ring seating. */
+/** Central hero attraction: a premium circular platform carrying the tilted,
+ *  rotating 3D Byit logo monument, branded "BYIT" (front) / "EXPO" (back) on the
+ *  platform edge, lit by a focal spotlight, with a curved media screen behind. */
 export function FeaturePlaza({
   position = [0, 0, 0],
 }: {
   position?: [number, number, number];
 }) {
+  const planterWood = usePbrMaterial("wood", { repeat: [10, 1], color: CREAM });
+  const benchCarpet = usePbrMaterial("carpet", { repeat: [10, 1], color: "#d8cdb6" });
+
+  // Platform edge lettering — extruded once, same brand family as the logo.
+  const byitText = useMemo(() => makeText3D("BYIT", { size: 0.62, depth: 0.12 }), []);
+  const expoText = useMemo(() => makeText3D("EXPO", { size: 0.62, depth: 0.12 }), []);
+
+  const TOP_Y = 0.62; // platform top surface
+
   return (
     <group position={position}>
-      {/* raised planter bed */}
-      <mesh position={[0, 0.25, 0]} receiveShadow castShadow>
+      {/* plinth drum (wood) */}
+      <mesh position={[0, 0.25, 0]} receiveShadow castShadow material={planterWood}>
         <cylinderGeometry args={[3.4, 3.5, 0.5, 48]} />
-        <meshStandardMaterial color={CREAM} roughness={0.7} />
       </mesh>
-      <mesh position={[0, 0.52, 0]}>
-        <cylinderGeometry args={[3.0, 3.0, 0.06, 48]} />
-        <meshStandardMaterial color="#3f7d4a" roughness={1} />
+      {/* premium polished dark top cap — reads as a monument base + takes the
+          logo's contact shadow cleanly */}
+      <mesh position={[0, 0.56, 0]} receiveShadow>
+        <cylinderGeometry args={[3.0, 3.0, 0.14, 64]} />
+        <meshStandardMaterial color={BRAND.DARK} roughness={0.28} metalness={0.35} envMapIntensity={1.3} />
       </mesh>
-      {/* gold totem sculpture (stacked tapering rings) */}
-      {[
-        [0, 0.9, 1.1],
-        [0, 1.9, 0.8],
-        [0, 2.7, 0.5],
-        [0, 3.3, 0.28],
-      ].map(([_, y, r], i) => (
-        <mesh key={i} position={[0, y, 0]} castShadow>
-          <cylinderGeometry args={[r * 0.7, r, 0.9, 24]} />
-          <meshStandardMaterial color={GOLD} metalness={0.7} roughness={0.3} emissive={GOLD} emissiveIntensity={0.18} />
-        </mesh>
-      ))}
-      {/* greenery around the totem */}
-      {[0, 1, 2, 3, 4, 5].map((k) => {
-        const a = (k / 6) * Math.PI * 2;
-        return <Plant key={k} position={[Math.cos(a) * 2.2, 0.5, Math.sin(a) * 2.2]} scale={0.9} />;
-      })}
+      {/* glowing orange rim — luxury showroom cue */}
+      <mesh position={[0, TOP_Y, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[3.0, 0.045, 14, 80]} />
+        <meshStandardMaterial color={BRAND.ORANGE} emissive={BRAND.ORANGE} emissiveIntensity={0.9} toneMapped={false} />
+      </mesh>
+
+      {/* platform branding mounted on the edge, facing outward */}
+      <mesh geometry={byitText} position={[0, TOP_Y + 0.33, 2.78]} castShadow>
+        <meshStandardMaterial color={BRAND.CREAM} roughness={0.34} metalness={0.12} envMapIntensity={1.1} />
+      </mesh>
+      <mesh geometry={expoText} position={[0, TOP_Y + 0.33, -2.78]} rotation={[0, Math.PI, 0]} castShadow>
+        <meshStandardMaterial color={BRAND.CREAM} roughness={0.34} metalness={0.12} envMapIntensity={1.1} />
+      </mesh>
+
+      {/* hero: the tilted, slowly-rotating Byit logo monument on the platform */}
+      <ByitLogo position={[0, TOP_Y, 0]} />
+
+      {/* focal spotlight from above — strong, soft pool on the monument */}
+      <spotLight
+        position={[0, 13, 1.2]}
+        angle={0.42}
+        penumbra={0.85}
+        intensity={260}
+        distance={34}
+        decay={2}
+        color="#fff4e6"
+      />
+
+      {/* enhanced, premium contact shadow of the monument onto the platform */}
+      <ContactShadows
+        position={[0, TOP_Y + 0.015, 0]}
+        scale={7}
+        blur={2.2}
+        far={4.5}
+        opacity={0.6}
+        resolution={256}
+        color="#120c06"
+      />
+
       {/* curved media screen behind */}
       <mesh position={[0, 2.4, -3.9]} rotation={[0, 0, 0]}>
         <cylinderGeometry args={[3.9, 3.9, 2.6, 40, 1, true, Math.PI * 0.72, Math.PI * 0.56]} />
         <meshStandardMaterial color="#1d3a52" emissive="#2a5a86" emissiveIntensity={0.5} side={2} toneMapped={false} />
       </mesh>
-      {/* ring bench */}
-      <mesh position={[0, 0.3, 0]} rotation={[Math.PI / 2, 0, 0]}>
+      {/* ring bench (carpet) */}
+      <mesh position={[0, 0.3, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow material={benchCarpet}>
         <torusGeometry args={[4.3, 0.28, 12, 48, Math.PI * 1.4]} />
-        <meshStandardMaterial color="#d8cdb6" roughness={0.85} />
       </mesh>
     </group>
   );
@@ -118,15 +154,15 @@ export function InformationDesk({
   rotationY?: number;
 }) {
   const logo = useTexture(logoUrl);
+  const deskWood = usePbrMaterial("wood", { repeat: [6, 2], color: CREAM });
+  const deskTopWood = usePbrMaterial("wood", { repeat: [6, 1], color: WOOD, roughness: 0.5 });
   return (
     <group position={position} rotation={[0, rotationY, 0]}>
-      <mesh position={[0, 0.55, 0]} castShadow receiveShadow>
+      <mesh position={[0, 0.55, 0]} castShadow receiveShadow material={deskWood}>
         <cylinderGeometry args={[1.9, 1.9, 1.1, 40, 1, false, Math.PI, Math.PI]} />
-        <meshStandardMaterial color={CREAM} roughness={0.6} />
       </mesh>
-      <mesh position={[0, 1.13, 0]} castShadow>
+      <mesh position={[0, 1.13, 0]} castShadow material={deskTopWood}>
         <cylinderGeometry args={[2.0, 2.0, 0.08, 40, 1, false, Math.PI, Math.PI]} />
-        <meshStandardMaterial color={WOOD} roughness={0.5} />
       </mesh>
       {/* white sign panel + logo so the dark mark stays legible */}
       <mesh position={[0, 2.0, -0.2]}>
@@ -154,11 +190,11 @@ export function VipLounge({
   position?: [number, number, number];
   rotationY?: number;
 }) {
+  const loungeCarpet = usePbrMaterial("carpet", { repeat: [6, 6], color: "#c9ba9e" });
   return (
     <group position={position} rotation={[0, rotationY, 0]}>
-      <mesh position={[0, 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+      <mesh position={[0, 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow material={loungeCarpet}>
         <circleGeometry args={[3.4, 48]} />
-        <meshStandardMaterial color="#c9ba9e" roughness={0.7} />
       </mesh>
       <CurvedSofa position={[0, 0, -0.6]} radius={2.1} arc={Math.PI * 1.25} rotationY={-Math.PI * 0.12} color="#d8cdb6" />
       <RoundTable position={[-0.8, 0, 0.5]} radius={0.45} />
@@ -197,31 +233,31 @@ export function CoffeeCorner({
 }: {
   position?: [number, number, number];
 }) {
+  const barWood = usePbrMaterial("wood", { repeat: [4, 3], color: CREAM });
+  const barTopWood = usePbrMaterial("wood", { repeat: [3, 3], color: WOOD, roughness: 0.5 });
+  const machineMetal = usePbrMaterial("metal", { repeat: [1, 1], color: "#2a2a2a", roughness: 0.4, envMapIntensity: 1 });
+  const stoolCarpet = usePbrMaterial("carpet", { repeat: [1, 1], color: "#d8cdb6" });
+  const stoolLeg = usePbrMaterial("metal", { repeat: [1, 1], color: "#2a2a2a", roughness: 0.5, envMapIntensity: 1 });
   return (
     <group position={position}>
-      <mesh position={[0, 0.55, 0]} castShadow receiveShadow>
+      <mesh position={[0, 0.55, 0]} castShadow receiveShadow material={barWood}>
         <cylinderGeometry args={[1.1, 1.1, 1.1, 32]} />
-        <meshStandardMaterial color={CREAM} roughness={0.6} />
       </mesh>
-      <mesh position={[0, 1.12, 0]} castShadow>
+      <mesh position={[0, 1.12, 0]} castShadow material={barTopWood}>
         <cylinderGeometry args={[1.2, 1.2, 0.07, 32]} />
-        <meshStandardMaterial color={WOOD} roughness={0.5} />
       </mesh>
-      {/* espresso machine */}
-      <mesh position={[0.3, 1.32, -0.2]} castShadow>
+      {/* espresso machine (metal) */}
+      <mesh position={[0.3, 1.32, -0.2]} castShadow material={machineMetal}>
         <boxGeometry args={[0.4, 0.3, 0.35]} />
-        <meshStandardMaterial color="#2a2a2a" metalness={0.4} roughness={0.4} />
       </mesh>
       {/* stools */}
       {[0.6, 1.8, 3.0].map((a, i) => (
         <group key={i} position={[Math.cos(a) * 1.7, 0, Math.sin(a) * 1.7]}>
-          <mesh position={[0, 0.55, 0]} castShadow>
+          <mesh position={[0, 0.55, 0]} castShadow material={stoolCarpet}>
             <cylinderGeometry args={[0.22, 0.22, 0.1, 16]} />
-            <meshStandardMaterial color="#d8cdb6" roughness={0.8} />
           </mesh>
-          <mesh position={[0, 0.27, 0]}>
+          <mesh position={[0, 0.27, 0]} material={stoolLeg}>
             <cylinderGeometry args={[0.05, 0.05, 0.55, 10]} />
-            <meshStandardMaterial color="#2a2a2a" metalness={0.5} />
           </mesh>
         </group>
       ))}

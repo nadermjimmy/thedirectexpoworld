@@ -1,11 +1,17 @@
-import { useMemo } from "react";
+import { Suspense, useMemo } from "react";
+import { usePbrMaterial } from "../materials/pbr";
+import { GlbModel, GLB } from "./GlbModel";
 
 // Shared palette for the "built" furniture so booths feel cohesive.
 const CREAM = "#efe7d8";
 const WOOD = "#6f4f32";
-const FOLIAGE = "#3f7d4a";
 
-/** A potted plant: trunk + a couple of clustered foliage blobs. */
+// The old procedural plant stood ~1 m tall at scale 1; the house_plant GLB is
+// fit to this height (in metres) per unit of `scale` so existing placements
+// keep their proportions.
+const PLANT_BASE_HEIGHT = 1.5;
+
+/** A potted house plant (GLB), auto-fitted and sat on the floor. */
 export function Plant({
   position = [0, 0, 0],
   scale = 1,
@@ -14,26 +20,17 @@ export function Plant({
   scale?: number;
 }) {
   return (
-    <group position={position} scale={scale}>
-      {/* pot */}
-      <mesh position={[0, 0.18, 0]} castShadow>
-        <cylinderGeometry args={[0.22, 0.16, 0.36, 16]} />
-        <meshStandardMaterial color="#d9cfc0" roughness={0.9} />
-      </mesh>
-      {/* foliage */}
-      <mesh position={[0, 0.6, 0]} castShadow>
-        <icosahedronGeometry args={[0.34, 1]} />
-        <meshStandardMaterial color={FOLIAGE} flatShading roughness={1} />
-      </mesh>
-      <mesh position={[0.18, 0.78, 0.08]} castShadow>
-        <icosahedronGeometry args={[0.24, 1]} />
-        <meshStandardMaterial color="#4c9159" flatShading roughness={1} />
-      </mesh>
-      <mesh position={[-0.16, 0.74, -0.06]} castShadow>
-        <icosahedronGeometry args={[0.22, 1]} />
-        <meshStandardMaterial color="#357544" flatShading roughness={1} />
-      </mesh>
-    </group>
+    <Suspense fallback={null}>
+      <GlbModel
+        url={GLB.plant}
+        position={position}
+        fit={{ axis: "y", size: PLANT_BASE_HEIGHT * scale }}
+        // Decorative foliage repeated ~85× across the floor: keep it out of the
+        // directional shadow pass (ContactShadows still grounds it). This is the
+        // single biggest shadow-pass saving on the scene.
+        castShadow={false}
+      />
+    </Suspense>
   );
 }
 
@@ -144,17 +141,17 @@ export function CurvedSofa({
   arc?: number;
   color?: string;
 }) {
+  // Carpet/upholstery for seating areas.
+  const fabric = usePbrMaterial("carpet", { repeat: [6, 1], color });
   return (
     <group position={position} rotation={[0, rotationY, 0]}>
       {/* seat ring */}
-      <mesh position={[0, 0.3, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+      <mesh position={[0, 0.3, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow material={fabric}>
         <torusGeometry args={[radius, 0.26, 12, 40, arc]} />
-        <meshStandardMaterial color={color} roughness={0.85} />
       </mesh>
       {/* backrest ring */}
-      <mesh position={[0, 0.6, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+      <mesh position={[0, 0.6, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow material={fabric}>
         <torusGeometry args={[radius + 0.22, 0.2, 12, 40, arc]} />
-        <meshStandardMaterial color={color} roughness={0.85} />
       </mesh>
     </group>
   );
@@ -170,15 +167,15 @@ export function RoundTable({
   radius?: number;
   color?: string;
 }) {
+  const top = usePbrMaterial("wood", { repeat: [1, 1], color, roughness: 0.5 });
+  const leg = usePbrMaterial("metal", { repeat: [1, 1], color: "#2a2a2a", roughness: 0.5, envMapIntensity: 1 });
   return (
     <group position={position}>
-      <mesh position={[0, 0.45, 0]} castShadow>
+      <mesh position={[0, 0.45, 0]} castShadow material={top}>
         <cylinderGeometry args={[radius, radius, 0.06, 24]} />
-        <meshStandardMaterial color={color} roughness={0.4} metalness={0.1} />
       </mesh>
-      <mesh position={[0, 0.22, 0]} castShadow>
+      <mesh position={[0, 0.22, 0]} castShadow material={leg}>
         <cylinderGeometry args={[0.06, 0.06, 0.45, 12]} />
-        <meshStandardMaterial color="#2a2a2a" />
       </mesh>
     </group>
   );
@@ -335,23 +332,21 @@ export function Armchair({
   rotationY?: number;
   color?: string;
 }) {
+  // Upholstered with the carpet/fabric set (seating area material).
+  const fabric = usePbrMaterial("carpet", { repeat: [2, 2], color });
   return (
     <group position={position} rotation={[0, rotationY, 0]}>
-      <mesh position={[0, 0.28, 0]} castShadow receiveShadow>
+      <mesh position={[0, 0.28, 0]} castShadow receiveShadow material={fabric}>
         <boxGeometry args={[0.62, 0.18, 0.6]} />
-        <meshStandardMaterial color={color} roughness={0.85} />
       </mesh>
-      <mesh position={[0, 0.55, -0.26]} castShadow>
+      <mesh position={[0, 0.55, -0.26]} castShadow material={fabric}>
         <boxGeometry args={[0.62, 0.55, 0.12]} />
-        <meshStandardMaterial color={color} roughness={0.85} />
       </mesh>
-      <mesh position={[-0.31, 0.42, 0]} castShadow>
+      <mesh position={[-0.31, 0.42, 0]} castShadow material={fabric}>
         <boxGeometry args={[0.1, 0.32, 0.6]} />
-        <meshStandardMaterial color={color} roughness={0.85} />
       </mesh>
-      <mesh position={[0.31, 0.42, 0]} castShadow>
+      <mesh position={[0.31, 0.42, 0]} castShadow material={fabric}>
         <boxGeometry args={[0.1, 0.32, 0.6]} />
-        <meshStandardMaterial color={color} roughness={0.85} />
       </mesh>
     </group>
   );

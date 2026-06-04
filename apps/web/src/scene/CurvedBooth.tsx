@@ -1,9 +1,11 @@
-import { useRef, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
-import type { Group } from "three";
+import { DoubleSide, type Group } from "three";
 import type { Developer } from "./developers";
 import { Plant, Armchair, RoundTable } from "./props";
+import { usePbrMaterial } from "../materials/pbr";
+import { GlbModel, GLB } from "./GlbModel";
 
 const CREAM = "#efe7d8";
 const R = 1.95; // curved-wall radius
@@ -12,11 +14,12 @@ const GAP = 1.35; // front opening angle (radians), centred on +Z
 
 /** A glowing "property render" screen: dark sky + a little brand-tinted skyline. */
 function RenderScreen({ accent }: { accent: string }) {
+  // Metal bezel around the display panel.
+  const bezel = usePbrMaterial("metal", { repeat: [1, 1], color: "#2b2722", roughness: 0.5, envMapIntensity: 1 });
   return (
     <group position={[0, 1.55, -R + 0.14]}>
-      <mesh>
+      <mesh castShadow material={bezel}>
         <boxGeometry args={[1.6, 1.0, 0.06]} />
-        <meshStandardMaterial color="#15110c" roughness={0.5} />
       </mesh>
       <mesh position={[0, 0, 0.04]}>
         <planeGeometry args={[1.46, 0.86]} />
@@ -37,6 +40,29 @@ function RenderScreen({ accent }: { accent: string }) {
 }
 
 /**
+ * The room's display: a real wall-facing TV (GLB) standing against the booth's
+ * back wall at eye level, facing the opening (+Z). The promo panel is emissive
+ * so the screen reads as "on". While the GLB streams in, the lightweight
+ * {@link RenderScreen} is shown as the Suspense fallback so there's always a
+ * screen on the wall.
+ */
+function RoomScreen({ accent }: { accent: string }) {
+  return (
+    <Suspense fallback={<RenderScreen accent={accent} />}>
+      <group position={[0, 0, -R + 0.15]}>
+        {/* OLED on a stand against the back wall, facing the visitor */}
+        <GlbModel url={GLB.tvRoom} position={[0, 0, 0]} rotationY={0} fit={{ axis: "y", size: 1.5 }} />
+        {/* emissive brand content on the screen face */}
+        <mesh position={[0, 0.95, 0.18]}>
+          <planeGeometry args={[1.18, 0.66]} />
+          <meshStandardMaterial color="#16314a" emissive={accent} emissiveIntensity={0.6} toneMapped={false} />
+        </mesh>
+      </group>
+    </Suspense>
+  );
+}
+
+/**
  * One curved, contemporary developer booth opening toward the visitor (+Z):
  * a cream C-wall, a wall-mounted property render, a low reception desk carrying
  * the developer name, a small lounge (table + chairs) and flanking greenery.
@@ -53,6 +79,14 @@ export function CurvedBooth({
   const liftRef = useRef<Group>(null);
   const [hovered, setHovered] = useState(false);
   const highlight = active || hovered;
+
+  // Shared PBR materials — identical across all 30 booths, so they're built
+  // once and reused (one wood/carpet/metal instance for the whole floor).
+  // Booth room wall uses oriented strand board (OSB).
+  const wallOsb = usePbrMaterial("osb", { repeat: [6, 2], color: CREAM, side: DoubleSide });
+  const padCarpet = usePbrMaterial("carpet", { repeat: [2, 2], color: "#cdbfa6" });
+  const deskWood = usePbrMaterial("wood", { repeat: [2, 1], color: CREAM });
+  const deskTopWood = usePbrMaterial("wood", { repeat: [2, 1], color: "#7a5836", roughness: 0.55 });
 
   useFrame(() => {
     if (!liftRef.current) return;
@@ -84,35 +118,25 @@ export function CurvedBooth({
           document.body.style.cursor = "auto";
         }}
       >
-        {/* booth floor pad */}
-        <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        {/* booth floor pad (carpet) */}
+        <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow material={padCarpet}>
           <circleGeometry args={[2.25, 40]} />
-          <meshStandardMaterial color="#cdbfa6" roughness={0.7} />
         </mesh>
 
-        {/* curved C-wall, open toward +Z */}
-        <mesh position={[0, H / 2, 0]} castShadow receiveShadow>
+        {/* curved C-wall, open toward +Z (oriented strand board, double-sided) */}
+        <mesh position={[0, H / 2, 0]} castShadow receiveShadow material={wallOsb}>
           <cylinderGeometry args={[R, R, H, 48, 1, true, Math.PI / 2 + GAP / 2, Math.PI * 2 - GAP]} />
-          <meshStandardMaterial
-            color={CREAM}
-            roughness={0.85}
-            side={2}
-            emissive={dev.color}
-            emissiveIntensity={highlight ? 0.12 : 0.04}
-          />
         </mesh>
 
-        {/* property render screen on the back wall */}
-        <RenderScreen accent={dev.color} />
+        {/* room display: wall-facing TV (falls back to a render screen while loading) */}
+        <RoomScreen accent={dev.color} />
 
-        {/* low reception desk at the opening, carrying the developer name */}
-        <mesh position={[0, 0.45, 1.35]} castShadow receiveShadow>
+        {/* low reception desk at the opening, carrying the developer name (wood) */}
+        <mesh position={[0, 0.45, 1.35]} castShadow receiveShadow material={deskWood}>
           <boxGeometry args={[2.2, 0.9, 0.5]} />
-          <meshStandardMaterial color={CREAM} roughness={0.6} />
         </mesh>
-        <mesh position={[0, 0.92, 1.35]} castShadow>
+        <mesh position={[0, 0.92, 1.35]} castShadow material={deskTopWood}>
           <boxGeometry args={[2.3, 0.06, 0.6]} />
-          <meshStandardMaterial color="#6f4f32" roughness={0.5} />
         </mesh>
         <mesh position={[0, 0.2, 1.61]}>
           <boxGeometry args={[2.0, 0.1, 0.02]} />
