@@ -2,10 +2,16 @@
 # Single service: builds the immersive web app + NestJS API, then serves both.
 
 [phases.setup]
-nixPkgs = ["nodejs_22", "pnpm"]
+# git-lfs so the large 3D assets (models/textures/HDRI) are fetched, not left
+# as LFS pointer files, before the web build runs.
+nixPkgs = ["nodejs_22", "pnpm", "git-lfs"]
 
 [phases.install]
-cmds = ["pnpm install --frozen-lockfile"]
+cmds = [
+  "git lfs install --local",
+  "git lfs pull",
+  "pnpm install --frozen-lockfile",
+]
 
 [phases.build]
 cmds = ["pnpm run build"]
